@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "sales-server": {
+      "command": "node",
+      "args": ["server.js"],
+      "cwd": "c:\\mcp-projects\\chat gpt"
+    }
+  }
+}

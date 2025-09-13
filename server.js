@@ -1,15 +1,17 @@
-// server.js
 import express from "express";
+import cors from "cors";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
+import { randomUUID } from "crypto";
 
 const app = express();
 app.use(express.json());
+app.use(cors({ origin: '*', exposedHeaders: ['Mcp-Session-Id'] }));
 
 // Create the MCP server
 const server = new McpServer({
-    name: "sales-mcp-http",
+    name: "sales-mcp-server",
     version: "1.0.0",
 });
 
@@ -66,11 +68,23 @@ server.registerTool(
     }
 );
 
-// Hook up Streamable HTTP transport at /mcp
-const transport = new StreamableHTTPServerTransport(app, { path: "/mcp" });
-await server.connect(transport);
+// Store transports by session
+const transports = {};
 
-// Start listening on port 3001
-app.listen(3001, () => {
-    console.log("✅ MCP HTTP server running at http://localhost:3001/mcp");
+app.post('/mcp', async (req, res) => {
+    const sessionId = req.headers['mcp-session-id'] || randomUUID();
+    
+    if (!transports[sessionId]) {
+        const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: () => sessionId
+        });
+        await server.connect(transport);
+        transports[sessionId] = transport;
+    }
+    
+    await transports[sessionId].handleRequest(req, res, req.body);
+});
+
+app.listen(3002, () => {
+    console.log("✅ MCP HTTP server running at http://localhost:3002/mcp");
 });
